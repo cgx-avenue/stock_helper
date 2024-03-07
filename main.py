@@ -91,7 +91,7 @@ with ui.row():
 ui.button('Record',on_click=input_new_transaction)
 
 ui.separator()
-ui.label('Stock overview').style('color: #6E93D6; font-size: 200%; font-weight: 300')
+ui.label('Overview').style('color: #6E93D6; font-size: 200%; font-weight: 300')
 
 ui_overview_table=ui.table.from_pandas(get_overview_table())
 ui.separator()
@@ -109,6 +109,21 @@ ui_code_selector=ui.select(codes,value=codes[0])
 
 
 ui_all_records=ui.table.from_pandas(get_all_records(),row_key='code').bind_filter_from(ui_code_selector,'value')
+
+
+fig = go.Figure()
+fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
+ui_plot=ui.plotly(fig).classes('w-full h-40')
+
+def update_plot():
+    ts=df_all_records[df_all_records['code']==ui_code_selector.value]['timestamp'].to_list()
+    prices=df_all_records[df_all_records['code']==ui_code_selector.value]['price'].to_list()
+    fig.data=[]
+    fig.add_trace(go.Scatter(x=ts, y=prices))
+    ui_plot.update()
+
+ui.button('update',on_click=update_plot)
+
 
 
 
