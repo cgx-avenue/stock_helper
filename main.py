@@ -3,14 +3,14 @@ import re
 import os
 import sqlite3
 import datetime
-
 import pandas as pd
-
 import plotly.graph_objects as go
 
 
 conn = sqlite3.connect('stock_trading_records.db')
 cur = conn.cursor()
+
+ui.page_title("Stock_transaction_tool")
 
 
 def get_all_records():
@@ -65,12 +65,11 @@ app.on_shutdown(close_app)
 
 def input_new_transaction():
     amount = price.value*quantity.value
-    row = [(toggle_action.value, str(datetime.datetime.now()).split('.')[
+    row = [(action.value, str(datetime.datetime.now()).split('.')[
             0], price.value, quantity.value, amount, fee.value, code.value, name.value)]
     insert_command = 'insert into stock_trading_record (action,timestamp,price,quantity,amount,fee,code,stock_name) values (?,?,?,?,?,?,?,?)'
     cur.executemany(insert_command, row)
-    sql = 'insert into sharks (id,name,sharktype,length) values(100,"test","testt",1000)'
-    cur.execute(sql)
+
     conn.commit()
     df_all_records = get_all_records()
     ui_all_records.update_rows(df_all_records.to_dict(orient='records'))
@@ -79,69 +78,59 @@ def input_new_transaction():
     ui.notify('Input successfully!')
 
 
-ui.label('Trading transaction input:').style(
+ui.label('Add new transaction').style(
     'color: #6E93D6; font-size: 200%; font-weight: 300')
-toggle_action = ui.toggle(['BUY', 'SELL'], value='BUY')
 
 
 with ui.row():
-
     code = ui.input(label='Code', placeholder='stock code',
-                    validation={'Input too long': lambda value: len(value) == 6}).style('width:15%')
+                    validation={'Input too long': lambda value: len(value) == 6}).style('width:8%').props('clearable')
     name = ui.input(label='Name', placeholder='stock name',
-                    validation={'Input too long': lambda value: len(value) < 20}).style('width:15%')
+                    validation={'Input too long': lambda value: len(value) < 20}).style('width:15%').props('clearable')
     price = ui.number(label='Price', format='%.3f', step=0.1).props(
-        'clearable').style('width:15%')
-
+        'clearable').style('width:10%')
     quantity = ui.number(label='Quantity',  placeholder='step by 100', value=100, step=100,
-                         validation={'Input ': lambda value: value > 0}).style('width:15%')
-
+                         validation={'Input ': lambda value: value > 0}).style('width:6%').props('clearable')
     fee = ui.number(label='Fee', placeholder='trasaction cost', step=0.1,
-                    validation={'Input too long': lambda value: value > 0}).style('width:15%')
-ui.button('Record', on_click=input_new_transaction)
+                    validation={'Input too long': lambda value: value > 0}).style('width:6%').props('clearable')
+    action = ui.radio(['BUY', 'SELL'], value='BUY').props('inline')
+
+    ui.button('Add', icon='add', on_click=input_new_transaction)
 
 ui.separator()
 ui.label('Overview').style('color: #6E93D6; font-size: 200%; font-weight: 300')
 
 ui_overview_table = ui.table.from_pandas(get_overview_table())
 ui.separator()
-ui.label('Transcations').style(
+
+
+
+def update_plot(filter_value: str = '') -> None:
+    fig.data = []
+    ts = df_all_records[df_all_records['code'] ==
+                        ui_code_selector.value]['timestamp'].to_list()
+    prices = df_all_records[df_all_records['code']
+                            == ui_code_selector.value]['price'].to_list()
+    fig.add_trace(go.Scatter(x=ts, y=prices))
+    ui_plot.update()
+    
+    
+with ui.row():    
+    ui.label('Transcations').style(
     'color: #6E93D6; font-size: 200%; font-weight: 300')
+    ui.space()
+    ui_code_selector = ui.select(codes, value=codes[0], on_change=update_plot)
 
 
-def get_transactions_by_code(code):
-    print('transaction')
-    print(code)
-    sql = "select * from stock_trading_record where code='{0}' order by timestamp desc".format(
-        code)
-    temp = pd.read_sql(sql, con=conn)
-    # ui_all_records.update_rows(temp.to_dict())
-    return temp
-
-
-ui_code_selector = ui.select(codes, value=codes[0])
-
-
-ui_all_records = ui.table.from_pandas(
-    get_all_records(), row_key='code').bind_filter_from(ui_code_selector, 'value')
 
 
 fig = go.Figure()
 fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
 ui_plot = ui.plotly(fig).classes('w-full h-40')
+update_plot()
 
-
-def update_plot():
-    ts = df_all_records[df_all_records['code'] ==
-                        ui_code_selector.value]['timestamp'].to_list()
-    prices = df_all_records[df_all_records['code']
-                            == ui_code_selector.value]['price'].to_list()
-    fig.data = []
-    fig.add_trace(go.Scatter(x=ts, y=prices))
-    ui_plot.update()
-
-
-ui.button('update', on_click=update_plot)
+ui_all_records = ui.table.from_pandas(
+    get_all_records(), row_key='code').bind_filter_from(ui_code_selector, 'value')
 
 
 ui.separator()

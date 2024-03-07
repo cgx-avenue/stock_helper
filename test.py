@@ -26,6 +26,18 @@ async def list_of_users() -> None:
         list_of_users.refresh()
 
     records: List[models.stock_trading_record] = await models.stock_trading_record.all()
+    columns = models.stock_trading_record
+    columns = [
+        {'name': 'name', 'label': 'Name', 'field': 'name',
+            'required': True, 'align': 'left'},
+        {'name': 'age', 'label': 'Age', 'field': 'age', 'sortable': True},
+    ]
+    rows = [
+        {'name': 'Alice', 'age': 18},
+        {'name': 'Bob', 'age': 21},
+        {'name': 'Carol'},
+    ]
+    ui.table(columns=columns, rows=rows, row_key='name')
     for record in reversed(records):
         with ui.card():
             with ui.row().classes('items-center'):
@@ -33,7 +45,8 @@ async def list_of_users() -> None:
                     .bind_value(record, 'code').on('blur', list_of_users.refresh)
                 ui.number('Price', on_change=record.save, format='%.0f') \
                     .bind_value(record, 'price').on('blur', list_of_users.refresh).classes('w-20')
-                ui.button(icon='delete', on_click=lambda u=record: delete(u)).props('flat')
+                ui.button(icon='delete',
+                          on_click=lambda u=record: delete(u)).props('flat')
 
 
 @ui.page('/')
@@ -48,7 +61,8 @@ async def index():
         with ui.row().classes('w-full items-center px-4'):
             name = ui.input(label='Name')
             age = ui.number(label='Age', format='%.0f').classes('w-20')
-            ui.button(on_click=create, icon='add').props('flat').classes('ml-auto')
+            ui.button(on_click=create, icon='add').props(
+                'flat').classes('ml-auto')
         await list_of_users()
 
 ui.run()
