@@ -5,11 +5,12 @@ import datetime
 
 import pandas as pd
 
+import plotly.graph_objects as go
+
+
 
 conn=sqlite3.connect('stock_trading_records.db')
 cur=conn.cursor()
-
-
 
 
 
@@ -18,8 +19,11 @@ def get_all_records():
     print(all_records.shape)
     return all_records
 
+df_all_records=get_all_records()
+
 def get_overview_table():
-    df=get_all_records()
+    # df=get_all_records()
+    df=df_all_records.copy()
     temp=df.groupby(['code','stock_name','action']).agg({'amount':sum,'quantity':sum})
     temp.columns=['total_amount','total_quantity']
     temp.reset_index(inplace=True)
@@ -34,11 +38,15 @@ def get_overview_table():
             temp.loc[index,'stock_quantity']=row['total_quantity']
             temp.loc[index,'stock_amount']=row['total_amount']
 
-    
-    temp.drop(columns=['action'])
+    temp['stock_cost']=temp['stock_amount'].apply(lambda x:float(x))/temp['stock_quantity']
+    temp['current_price']={}
+    temp['profit']={}
+    temp=temp.drop(['action','total_quantity','total_amount'],axis=1)
 
     return temp
 
+df_overview=get_overview_table()
+codes= list(df_overview['code'].values)
 
 
 def close_app():
@@ -56,7 +64,8 @@ def input_new_transaction():
     sql='insert into sharks (id,name,sharktype,length) values(100,"test","testt",1000)'
     cur.execute(sql)
     conn.commit()
-    ui_all_records.update_rows(get_all_records().to_dict(orient='records'))
+    df_all_records=get_all_records()
+    ui_all_records.update_rows(df_all_records.to_dict(orient='records'))
     ui_overview_table.update_rows(get_overview_table().to_dict(orient='record'))
     ui.notify('Input successfully!')
 
@@ -82,12 +91,30 @@ with ui.row():
 ui.button('Record',on_click=input_new_transaction)
 
 ui.separator()
+ui.label('Stock overview').style('color: #6E93D6; font-size: 200%; font-weight: 300')
 
 ui_overview_table=ui.table.from_pandas(get_overview_table())
+ui.separator()
+ui.label('Transcations').style('color: #6E93D6; font-size: 200%; font-weight: 300')
 
-ui_all_records=ui.table.from_pandas(get_all_records())
+def get_transactions_by_code(code):
+    print('transaction')
+    print(code)
+    sql="select * from stock_trading_record where code='{0}' order by timestamp desc".format(code)
+    temp=pd.read_sql(sql,con=conn)
+    # ui_all_records.update_rows(temp.to_dict())
+    return temp
+
+ui_code_selector=ui.select(codes,value=codes[0])
+
+
+ui_all_records=ui.table.from_pandas(get_all_records(),row_key='code').bind_filter_from(ui_code_selector,'value')
+
+
 
 ui.separator()
+
+
 
 
 def show_value(e):
