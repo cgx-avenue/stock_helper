@@ -5,7 +5,7 @@ import sqlite3
 import datetime
 import pandas as pd
 import plotly.graph_objects as go
-
+import akshare as ak
 
 conn = sqlite3.connect('stock_trading_records.db')
 cur = conn.cursor()
@@ -20,39 +20,62 @@ def get_all_records():
     return all_records
 
 
+# get all transactions from database as data source
 df_all_records = get_all_records()
+
+# use akshare interface to get all ETF real-time prices
+dfetf = ak.fund_etf_spot_em()
 
 
 def get_overview_table():
-    # df=get_all_records()
     df = df_all_records.copy()
-    temp = df.groupby(['code', 'stock_name', 'action']).agg(
+
+    df_buy = df[df['action'] == 'BUY'].groupby(['code', 'stock_name']).agg(
         {'amount': sum, 'quantity': sum})
-    temp.columns = ['total_amount', 'total_quantity']
-    temp.reset_index(inplace=True)
-    print(temp)
-    temp = temp.sort_values(['code', 'action'], ascending=[True, True])
-    temp['stock_quantity'] = temp['total_quantity'] - \
-        temp['total_quantity'].shift(-1)
-    temp['stock_amount'] = temp['total_amount']-temp['total_amount'].shift(-1)
-    temp = temp[temp['action'] == 'BUY']
+    df_sell = df[df['action'] == 'SELL'].groupby(['code', 'stock_name']).agg(
+        {'amount': sum, 'quantity': sum})
+    df_buy.reset_index(inplace=True)
+    df_sell.reset_index(inplace=True)
+    df_agg = df_buy.join(df_sell.set_index(
+        'code'), on='code', rsuffix='_sell').fillna(0)
+    df_agg['amount'] = df_agg['amount']-df_agg['amount_sell']
+    df_agg['quantity'] = df_agg['quantity']-df_agg['quantity_sell']
+    df_agg.sort_values('quantity', ascending=True)
 
-    for index, row in temp.iterrows():
-        if int(row['stock_quantity']) < 0:
-            temp.loc[index, 'stock_quantity'] = row['total_quantity']
-            temp.loc[index, 'stock_amount'] = row['total_amount']
+    df_agg = df_agg.drop(
+        ['stock_name_sell', 'amount_sell', 'quantity_sell'], axis=1)
+    df_agg['cost'] = df_agg['amount'].apply(
+        lambda x: float(x))/df_agg['quantity']
 
-    temp['stock_cost'] = temp['stock_amount'].apply(
-        lambda x: float(x))/temp['stock_quantity']
-    temp['current_price'] = {}
-    temp['profit'] = {}
-    temp = temp.drop(['action', 'total_quantity', 'total_amount'], axis=1)
+    df = df_agg.join(dfetf.set_index('代码'), on='code')
+    df = df.drop(['stock_name', '成交量', '成交额', '流通市值', '总市值'], axis=1)
+    df[["最新价", "涨跌额"]] = df[["最新价", "涨跌额"]].apply(pd.to_numeric)
+    df['current_amount'] = df['最新价']*df['quantity']
+    df['cost'] = df['cost'].apply(lambda x: '%.3f' % x)
+    df['profit'] = (df['current_amount']-df['amount']
+                    ).apply(lambda x: '%.3f' % x)
 
-    return temp
+    return df
 
 
 df_overview = get_overview_table()
+print(df_overview)
 codes = list(df_overview['code'].values)
+
+
+def bind_price_to_all_records():
+    # process detailed transaction data
+    df = df_all_records.copy().join(dfetf.set_index('代码'),on='code')
+    df = df.drop(['stock_name', '成交量', '成交额', '流通市值', '总市值', '涨跌额',
+                 '涨跌幅', '开盘价', '最高价', '最低价', '昨收', '换手率'], axis=1)
+    df[["price", "quantity", 'amount', 'fee']] = df[[
+        "price", "quantity", 'amount', 'fee']].apply(pd.to_numeric)
+
+    df['profit'] = (df['最新价']-df['price'])*df['quantity']
+
+    df['profit'] = df['profit'].mask(df['action'] == 'SELL', df['profit']*(-1)).apply(lambda x: '%.3f' % x)
+
+    return df
 
 
 def close_app():
@@ -74,7 +97,7 @@ def input_new_transaction():
     df_all_records = get_all_records()
     ui_all_records.update_rows(df_all_records.to_dict(orient='records'))
     ui_overview_table.update_rows(
-        get_overview_table().to_dict(orient='record'))
+        bind_price_to_all_records().to_dict(orient='records'))
     ui.notify('Input successfully!')
 
 
@@ -104,7 +127,6 @@ ui_overview_table = ui.table.from_pandas(get_overview_table())
 ui.separator()
 
 
-
 def update_plot(filter_value: str = '') -> None:
     fig.data = []
     ts = df_all_records[df_all_records['code'] ==
@@ -113,15 +135,13 @@ def update_plot(filter_value: str = '') -> None:
                             == ui_code_selector.value]['price'].to_list()
     fig.add_trace(go.Scatter(x=ts, y=prices))
     ui_plot.update()
-    
-    
-with ui.row():    
+
+
+with ui.row():
     ui.label('Transcations').style(
-    'color: #6E93D6; font-size: 200%; font-weight: 300')
+        'color: #6E93D6; font-size: 200%; font-weight: 300')
     ui.space()
     ui_code_selector = ui.select(codes, value=codes[0], on_change=update_plot)
-
-
 
 
 fig = go.Figure()
@@ -130,7 +150,7 @@ ui_plot = ui.plotly(fig).classes('w-full h-40')
 update_plot()
 
 ui_all_records = ui.table.from_pandas(
-    get_all_records(), row_key='code').bind_filter_from(ui_code_selector, 'value')
+    bind_price_to_all_records(), row_key='code').bind_filter_from(ui_code_selector, 'value')
 
 
 ui.separator()
@@ -138,10 +158,6 @@ ui.separator()
 
 def show_value(e):
     ui.notify(e.value)
-
-
-ui.label('Hello world')
-ui.button('Click me!', on_click=lambda: ui.notify('You clicked me!'))
 
 
 ui.run()
