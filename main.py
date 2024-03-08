@@ -12,6 +12,8 @@ cur = conn.cursor()
 
 ui.page_title("Stock_transaction_tool")
 
+label_style = 'color: #6E93D6; font-size: 200%; font-weight: 300'
+
 
 def get_all_records():
     all_records = pd.read_sql(
@@ -109,8 +111,7 @@ def input_new_transaction():
     ui.notify('Input successfully!')
 
 
-ui.label('Add new transaction').style(
-    'color: #6E93D6; font-size: 200%; font-weight: 300')
+ui.label('Add new transaction').style(label_style)
 
 
 with ui.row():
@@ -129,7 +130,7 @@ with ui.row():
     ui.button('Add', icon='add', on_click=input_new_transaction)
 
 ui.separator()
-ui.label('Overview').style('color: #6E93D6; font-size: 200%; font-weight: 300')
+ui.label('Overview').style(label_style)
 
 ui_overview_table = ui.table.from_pandas(get_overview_table())
 ui_overview_table.add_slot('body-cell-profit', '''
@@ -144,42 +145,41 @@ ui.separator()
 
 def update_plot() -> None:
     fig.data = []
-    df_buy=df_all_records[df_all_records['action']=='BUY'].copy()
-    df_sell=df_all_records[df_all_records['action']=='SELL'].copy()
+    df_buy = df_all_records[df_all_records['action'] == 'BUY'].copy()
+    df_sell = df_all_records[df_all_records['action'] == 'SELL'].copy()
     ts_buy = df_buy[df_all_records['code'] ==
-                        ui_code_selector.value ]['timestamp'].to_list()
+                    ui_code_selector.value]['timestamp'].to_list()
     prices_buy = df_buy[df_all_records['code']
-                            == ui_code_selector.value]['price'].to_list()
+                        == ui_code_selector.value]['price'].to_list()
     quantity_buy = df_buy[df_all_records['code']
-                              == ui_code_selector.value]['quantity'].to_list()
+                          == ui_code_selector.value]['quantity'].to_list()
     size_buy = list(map(lambda x: x/100, quantity_buy))
     ts_sell = df_sell[df_all_records['code'] ==
-                        ui_code_selector.value ]['timestamp'].to_list()
+                      ui_code_selector.value]['timestamp'].to_list()
     prices_sell = df_sell[df_all_records['code']
-                            == ui_code_selector.value]['price'].to_list()
+                          == ui_code_selector.value]['price'].to_list()
     quantity_sell = df_sell[df_all_records['code']
-                              == ui_code_selector.value]['quantity'].to_list()
+                            == ui_code_selector.value]['quantity'].to_list()
     size_sell = list(map(lambda x: x/100, quantity_sell))
-    
-    fig.add_trace(go.Scatter(x=ts_buy, y=prices_buy,text=quantity_buy,
-                  marker_size=size_buy, hoverinfo='y + text'))
-    fig.add_trace(go.Scatter(x=ts_sell, y=prices_sell,text=quantity_sell,
-                  marker_size=size_sell, hoverinfo='y + text'))
-    
+
+    fig.add_trace(go.Scatter(x=ts_buy, y=prices_buy, text=quantity_buy,
+                  marker_size=size_buy, hoverinfo='y + text', name='Buy'))
+    fig.add_trace(go.Scatter(x=ts_sell, y=prices_sell, text=quantity_sell,
+                  marker_size=size_sell, hoverinfo='y + text', name='Sell'))
 
     ui_plot.update()
 
 
 with ui.row():
     ui.label('Transcations').style(
-        'color: #6E93D6; font-size: 200%; font-weight: 300')
+        label_style)
     ui.space()
     ui_code_selector = ui.select(codes, value=codes[0], on_change=update_plot)
 
 
 fig = go.Figure()
 fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
-ui_plot = ui.plotly(fig).classes('w-full h-40')
+ui_plot = ui.plotly(fig).classes('w-full h-60')
 update_plot()
 
 ui_all_records = ui.table.from_pandas(
