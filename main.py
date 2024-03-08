@@ -50,10 +50,12 @@ def get_overview_table():
     df = df_agg.join(dfetf.set_index('代码'), on='code')
     df = df.drop(['stock_name', '成交量', '成交额', '流通市值', '总市值'], axis=1)
     df[["最新价", "涨跌额"]] = df[["最新价", "涨跌额"]].apply(pd.to_numeric)
-    df['current_amount'] = df['最新价']*df['quantity']
+    df['现价值'] = df['最新价']*df['quantity']
+    df['差价']=(df['最新价']-df['cost']).apply(lambda x: '%.3f' % x)
+    df['差幅']=   (100*(df['最新价']-df['cost'])/df['cost']).apply(lambda x: '%.2f%%' % x)
+    
     df['cost'] = df['cost'].apply(lambda x: '%.3f' % x)
-    df['profit'] = (df['current_amount']-df['amount']
-                    ).apply(lambda x: '%.3f' % x)
+    df['profit'] = (df['现价值']-df['amount']).apply(lambda x: '%.3f' % x)
 
     return df
 
@@ -71,8 +73,10 @@ def bind_price_to_all_records():
     df[["price", "quantity", 'amount', 'fee']] = df[[
         "price", "quantity", 'amount', 'fee']].apply(pd.to_numeric)
 
+    df['差价']=(df['最新价']-df['price']).apply(lambda x: '%.3f' % x)
+    df['差幅']=   (100*(df['最新价']-df['price'])/df['price']).apply(lambda x: '%.2f%%' % x)
     df['profit'] = (df['最新价']-df['price'])*df['quantity']
-
+    
     df['profit'] = df['profit'].mask(df['action'] == 'SELL', df['profit']*(-1)).apply(lambda x: '%.3f' % x)
 
     return df
@@ -124,6 +128,13 @@ ui.separator()
 ui.label('Overview').style('color: #6E93D6; font-size: 200%; font-weight: 300')
 
 ui_overview_table = ui.table.from_pandas(get_overview_table())
+ui_overview_table.add_slot('body-cell-profit', '''
+    <q-td key="profit" :props="props">
+        <q-badge :color="props.value < 0 ? 'red' : 'green'">
+            {{ props.value }}
+        </q-badge>
+    </q-td>
+''')
 ui.separator()
 
 
@@ -151,7 +162,13 @@ update_plot()
 
 ui_all_records = ui.table.from_pandas(
     bind_price_to_all_records(), row_key='code').bind_filter_from(ui_code_selector, 'value')
-
+ui_all_records.add_slot('body-cell-profit', '''
+    <q-td key="profit" :props="props">
+        <q-badge :color="props.value < 0 ? 'red' : 'green'">
+            {{ props.value }}
+        </q-badge>
+    </q-td>
+''')
 
 ui.separator()
 
