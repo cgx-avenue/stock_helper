@@ -50,10 +50,12 @@ def get_overview_table():
     df = df_agg.join(dfetf.set_index('代码'), on='code')
     df = df.drop(['stock_name', '成交量', '成交额', '流通市值', '总市值'], axis=1)
     df[["最新价", "涨跌额"]] = df[["最新价", "涨跌额"]].apply(pd.to_numeric)
+    df['涨跌幅'].apply(lambda x: '%.2f%%' % x)
     df['现价值'] = df['最新价']*df['quantity']
-    df['差价']=(df['最新价']-df['cost']).apply(lambda x: '%.3f' % x)
-    df['差幅']=   (100*(df['最新价']-df['cost'])/df['cost']).apply(lambda x: '%.2f%%' % x)
-    
+    df['差价'] = (df['最新价']-df['cost']).apply(lambda x: '%.3f' % x)
+    df['差幅'] = (100*(df['最新价']-df['cost'])/df['cost']
+                ).apply(lambda x: '%.2f%%' % x)
+
     df['cost'] = df['cost'].apply(lambda x: '%.3f' % x)
     df['profit'] = (df['现价值']-df['amount']).apply(lambda x: '%.3f' % x)
 
@@ -67,17 +69,19 @@ codes = list(df_overview['code'].values)
 
 def bind_price_to_all_records():
     # process detailed transaction data
-    df = df_all_records.copy().join(dfetf.set_index('代码'),on='code')
+    df = df_all_records.copy().join(dfetf.set_index('代码'), on='code')
     df = df.drop(['stock_name', '成交量', '成交额', '流通市值', '总市值', '涨跌额',
                  '涨跌幅', '开盘价', '最高价', '最低价', '昨收', '换手率'], axis=1)
     df[["price", "quantity", 'amount', 'fee']] = df[[
         "price", "quantity", 'amount', 'fee']].apply(pd.to_numeric)
 
-    df['差价']=(df['最新价']-df['price']).apply(lambda x: '%.3f' % x)
-    df['差幅']=   (100*(df['最新价']-df['price'])/df['price']).apply(lambda x: '%.2f%%' % x)
+    df['差价'] = (df['最新价']-df['price']).apply(lambda x: '%.3f' % x)
+    df['差幅'] = (100*(df['最新价']-df['price'])/df['price']
+                ).apply(lambda x: '%.2f%%' % x)
     df['profit'] = (df['最新价']-df['price'])*df['quantity']
-    
-    df['profit'] = df['profit'].mask(df['action'] == 'SELL', df['profit']*(-1)).apply(lambda x: '%.3f' % x)
+
+    df['profit'] = df['profit'].mask(
+        df['action'] == 'SELL', df['profit']*(-1)).apply(lambda x: '%.3f' % x)
 
     return df
 
@@ -138,13 +142,31 @@ ui_overview_table.add_slot('body-cell-profit', '''
 ui.separator()
 
 
-def update_plot(filter_value: str = '') -> None:
+def update_plot() -> None:
     fig.data = []
-    ts = df_all_records[df_all_records['code'] ==
-                        ui_code_selector.value]['timestamp'].to_list()
-    prices = df_all_records[df_all_records['code']
+    df_buy=df_all_records[df_all_records['action']=='BUY'].copy()
+    df_sell=df_all_records[df_all_records['action']=='SELL'].copy()
+    ts_buy = df_buy[df_all_records['code'] ==
+                        ui_code_selector.value ]['timestamp'].to_list()
+    prices_buy = df_buy[df_all_records['code']
                             == ui_code_selector.value]['price'].to_list()
-    fig.add_trace(go.Scatter(x=ts, y=prices))
+    quantity_buy = df_buy[df_all_records['code']
+                              == ui_code_selector.value]['quantity'].to_list()
+    size_buy = list(map(lambda x: x/100, quantity_buy))
+    ts_sell = df_sell[df_all_records['code'] ==
+                        ui_code_selector.value ]['timestamp'].to_list()
+    prices_sell = df_sell[df_all_records['code']
+                            == ui_code_selector.value]['price'].to_list()
+    quantity_sell = df_sell[df_all_records['code']
+                              == ui_code_selector.value]['quantity'].to_list()
+    size_sell = list(map(lambda x: x/100, quantity_sell))
+    
+    fig.add_trace(go.Scatter(x=ts_buy, y=prices_buy,text=quantity_buy,
+                  marker_size=size_buy, hoverinfo='y + text'))
+    fig.add_trace(go.Scatter(x=ts_sell, y=prices_sell,text=quantity_sell,
+                  marker_size=size_sell, hoverinfo='y + text'))
+    
+
     ui_plot.update()
 
 
