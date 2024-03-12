@@ -21,7 +21,6 @@ def get_all_records():
     print(all_records.shape)
     return all_records
 
-
 # get all transactions from database as data source
 df_all_records = get_all_records()
 
@@ -68,10 +67,10 @@ def get_overview_table():
         '差价', 'cost', 'profit']].map(lambda x: '%.3f' % x)
     return df
 
-
 df_overview = get_overview_table()
-print(df_overview)
+
 codes = list(df_overview['code'].values)
+total_profit=round( df_overview['profit'].apply(pd.to_numeric).sum(),2)
 
 
 def bind_price_to_all_records():
@@ -92,7 +91,8 @@ def bind_price_to_all_records():
 
     return df
 
-df_all_records_price=bind_price_to_all_records()
+
+df_all_records_price = bind_price_to_all_records()
 
 
 def close_app():
@@ -137,7 +137,12 @@ with ui.expansion('Add new transaction!', icon='add').classes('w-full').style(la
 
 
 ui.separator()
+
 ui.label('Overview').style(label_style)
+ui_total_profit=ui.label('Total profit: {0}'.format(total_profit)).style('font-size: 100%; font-weight: 300')
+
+
+
 
 
 @ui.refreshable
@@ -159,7 +164,7 @@ def update_overview_table_ui() -> None:
 
 
 overtiew_table_ui()
-ui.button('update', on_click=update_overview_table_ui)
+# ui.button('update', on_click=update_overview_table_ui)
 
 ui.separator()
 
@@ -203,26 +208,30 @@ fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
 ui_plot = ui.plotly(fig).classes('w-full h-60')
 update_plot()
 
+
 @ui.refreshable
 def all_records_table_ui() -> None:
     ui.table.from_pandas(
-    bind_price_to_all_records(), row_key='code').bind_filter_from(ui_code_selector, 'value').add_slot('body-cell-profit', '''
+        df_all_records_price, row_key='code').bind_filter_from(ui_code_selector, 'value').add_slot('body-cell-profit', '''
     <q-td key="profit" :props="props">
         <q-badge :color="props.value < 0 ? 'red' : 'green'">
             {{ props.value }}
         </q-badge>
     </q-td>
 ''')
-    
+
+
 def update_all_records_table_ui() -> None:
-    global df_etf,df_all_records_price
+    global df_etf, df_all_records_price,df_overview
     df_etf = ak.fund_etf_spot_em()
     df_all_records_price = bind_price_to_all_records()
+    df_overview=get_overview_table()
+    overtiew_table_ui.refresh()
     all_records_table_ui.refresh()
+
 
 all_records_table_ui()
 ui.button('update', on_click=update_all_records_table_ui)
-
 
 
 ui.separator()
