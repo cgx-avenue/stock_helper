@@ -52,3 +52,7 @@ CREATE INDEX stock_trading_record_id_IDX ON stock_trading_record (id,code,stock_
 
 
 ```
+
+# to-do
+* [ ] change table to ui.refreshable and using ui.timer(5) to update every 5 seconds
+* [ ] insert done, change from notification to dialog

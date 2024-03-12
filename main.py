@@ -108,29 +108,38 @@ def input_new_transaction():
     ui_all_records.update_rows(df_all_records.to_dict(orient='records'))
     ui_overview_table.update_rows(
         bind_price_to_all_records().to_dict(orient='records'))
-    ui.notify('Input successfully!')
+    with ui.dialog() as dialog,ui.card():
+        ui.label('Insertion done!').style('color: green; font-size: 200%')
+        ui.button('Close',on_click=dialog.close)
 
 
-ui.label('Add new transaction').style(label_style)
 
 
-with ui.row():
-    code = ui.input(label='Code', placeholder='stock code',
-                    validation={'Input too long': lambda value: len(value) == 6}).style('width:8%').props('clearable')
-    name = ui.input(label='Name', placeholder='stock name',
-                    validation={'Input too long': lambda value: len(value) < 20}).style('width:15%').props('clearable')
-    price = ui.number(label='Price', format='%.3f', step=0.1).props(
-        'clearable').style('width:10%')
-    quantity = ui.number(label='Quantity',  placeholder='step by 100', value=100, step=100,
-                         validation={'Input ': lambda value: value > 0}).style('width:6%').props('clearable')
-    fee = ui.number(label='Fee', placeholder='trasaction cost', step=0.1,
-                    validation={'Input too long': lambda value: value > 0}).style('width:6%').props('clearable')
-    action = ui.radio(['BUY', 'SELL'], value='BUY').props('inline')
+with ui.expansion('Add new transaction!', icon='add').classes('w-full').style(label_style):
+    with ui.row():
+        code = ui.input(label='Code', placeholder='stock code',
+                        validation={'Input too long': lambda value: len(value) == 6}).style('width:8%').props('clearable')
+        name = ui.input(label='Name', placeholder='stock name',
+                        validation={'Input too long': lambda value: len(value) < 20}).style('width:15%').props('clearable')
+        price = ui.number(label='Price', format='%.3f', step=0.1).props(
+            'clearable').style('width:10%')
+        quantity = ui.number(label='Quantity',  placeholder='step by 100', value=100, step=100,
+                            validation={'Input ': lambda value: value > 0}).style('width:6%').props('clearable')
+        fee = ui.number(label='Fee', placeholder='trasaction cost', step=0.1,
+                        validation={'Input too long': lambda value: value > 0}).style('width:6%').props('clearable')
+        action = ui.radio(['BUY', 'SELL'], value='BUY').props('inline')
 
-    ui.button('Add', icon='add', on_click=input_new_transaction)
+        ui.button('Add', icon='add', on_click=input_new_transaction)
+
+
+
+
 
 ui.separator()
 ui.label('Overview').style(label_style)
+
+
+
 
 ui_overview_table = ui.table.from_pandas(get_overview_table())
 ui_overview_table.add_slot('body-cell-profit', '''
