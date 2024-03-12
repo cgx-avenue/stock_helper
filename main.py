@@ -142,8 +142,8 @@ with ui.expansion('Add new transaction!', icon='add').classes('w-full').style(la
 ui.separator()
 
 ui.label('Overview').style(label_style)
-
 ui_total_profit=ui.label('Total profit: {0}'.format(total_profit)).style('font-size: 100%; font-weight: 300')
+
 
 
 
@@ -151,7 +151,7 @@ ui_total_profit=ui.label('Total profit: {0}'.format(total_profit)).style('font-s
 
 @ui.refreshable
 def overtiew_table_ui() -> None:
-    ui.table.from_pandas(df_overview).add_slot('body-cell-profit', '''
+    ui.table.from_pandas(df_overview,pagination=10).add_slot('body-cell-profit', '''
     <q-td key="profit" :props="props">
         <q-badge :color="props.value < 0 ? 'red' : 'green'">
             {{ props.value }}
@@ -216,7 +216,7 @@ update_plot()
 @ui.refreshable
 def all_records_table_ui() -> None:
     ui.table.from_pandas(
-        df_all_records_price, row_key='code').bind_filter_from(ui_code_selector, 'value').add_slot('body-cell-profit', '''
+        df_all_records_price, row_key='code',pagination=5).bind_filter_from(ui_code_selector, 'value').add_slot('body-cell-profit', '''
     <q-td key="profit" :props="props">
         <q-badge :color="props.value < 0 ? 'red' : 'green'">
             {{ props.value }}
