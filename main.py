@@ -1,11 +1,10 @@
 from nicegui import ui, app
-import re
-import os
 import sqlite3
 import datetime
 import pandas as pd
 import plotly.graph_objects as go
 import akshare as ak
+import numpy as np
 
 conn = sqlite3.connect('stock_trading_records.db')
 cur = conn.cursor()
@@ -44,36 +43,36 @@ def get_overview_table():
     df_agg = df_agg.drop(
         ['stock_name_sell', 'amount_sell', 'quantity_sell'], axis=1)
     df_agg['cost'] = df_agg['amount'].apply(
-        lambda x: float(x))/df_agg['quantity']
+        lambda x: float(x))/df_agg['quantity'] 
 
     df = df_agg.join(df_etf.set_index('代码'), on='code')
     df = df.drop(['stock_name', '成交量', '成交额', '流通市值', '总市值'], axis=1)
     df[["最新价", "涨跌额"]] = df[["最新价", "涨跌额"]].apply(pd.to_numeric)
 
     df['现价值'] = df['最新价']*df['quantity']
-    df['差价'] = (df['最新价']-df['cost'])
+    df['差价'] = (df['最新价']-df['cost']) 
     df['差幅'] = (100*(df['最新价']-df['cost'])/df['cost']
-                )
+                ) 
 
     df['cost'] = df['cost']
     df['profit'] = (df['现价值']-df['amount'])
-    df[['差幅', '涨跌幅']] = df[['amount', '涨跌幅']].map(lambda x: '%.2f%%' % x)
+    df.fillna(0)
+    df.replace([np.inf,-np.inf],0,inplace=True)
+    df[['差幅', '涨跌幅']] = df[['差幅', '涨跌幅']].map(lambda x: '%.2f%%' % x)
     df[['amount', '现价值']] = df[['amount', '现价值']].map(lambda x: '%.2f' % x)
     df[['差价', 'cost', 'profit']] = df[[
         '差价', 'cost', 'profit']].map(lambda x: '%.3f' % x)
+    df=df.sort_values(by=['quantity','amount'],ascending=False)
     return df
 
 df_overview = get_overview_table()
 
 all_stock_codes = list(df_overview['code'].values)
 
-
 def get_total_profit(df_overview) -> float:
     return round(df_overview['profit'].apply(pd.to_numeric).sum(), 2)
 
-
 total_profit = get_total_profit(df_overview)
-
 
 def bind_price_to_all_records():
     # process detailed transaction data
@@ -93,17 +92,13 @@ def bind_price_to_all_records():
 
     return df
 
-
 df_all_records_price = bind_price_to_all_records()
-
 
 def close_app():
     cur.close()
     conn.close()
 
-
 app.on_shutdown(close_app)
-
 
 def input_new_transaction():
     amount = price.value*quantity.value
@@ -113,13 +108,10 @@ def input_new_transaction():
     cur.executemany(insert_command, row)
 
     conn.commit()
-    df_all_records = get_all_records()
-    ui_all_records.update_rows(df_all_records.to_dict(orient='records'))
-    update_overview_table_ui()
+    update_2_tables_ui()
     with ui.dialog() as dialog, ui.card():
-        ui.label('Insertion done!').style('color: green; font-size: 200%')
+        ui.label('New transaction added!').style('color: green; font-size: 200%')
         ui.button('Close', on_click=dialog.close)
-
 
 with ui.expansion('Add new transaction!', icon='add').classes('w-full').style(label_style):
     with ui.row():
@@ -137,14 +129,13 @@ with ui.expansion('Add new transaction!', icon='add').classes('w-full').style(la
 
         ui.button('Add', icon='add', on_click=input_new_transaction)
 
-
 ui.separator()
+
 with ui.row():
     ui.label('Overview').style(label_style)
     ui.space()
     ui_total_profit = ui.label().bind_text(globals(), 'total_profit').style(
         'color:green;font-size: 100%; font-weight: 300' if total_profit > 0 else 'color:red;font-size: 100%; font-weight: 300;margin-top:15px')
-
 
 @ui.refreshable
 def overtiew_table_ui() -> None:
@@ -200,7 +191,6 @@ fig.update_layout(margin=dict(l=0, r=0, t=0, b=0))
 ui_plot = ui.plotly(fig).classes('w-full h-60')
 update_plot()
 
-
 @ui.refreshable
 def all_records_table_ui() -> None:
     ui.table.from_pandas(
@@ -212,8 +202,7 @@ def all_records_table_ui() -> None:
     </q-td>
 ''')
 
-
-def update_all_records_table_ui() -> None:
+def update_2_tables_ui() -> None:
     global df_etf, df_all_records_price, df_overview,total_profit
     df_etf = ak.fund_etf_spot_em()
     df_all_records_price = bind_price_to_all_records()
@@ -222,13 +211,7 @@ def update_all_records_table_ui() -> None:
     overtiew_table_ui.refresh()
     all_records_table_ui.refresh()
 
-
 all_records_table_ui()
-ui.button('update', on_click=update_all_records_table_ui)
-
-ui.separator()
-
-def show_value(e):
-    ui.notify(e.value)
+ui.button('update', on_click=update_2_tables_ui)
 
 ui.run()
