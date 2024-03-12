@@ -69,9 +69,12 @@ def get_overview_table():
 
 df_overview = get_overview_table()
 
-codes = list(df_overview['code'].values)
-total_profit=round( df_overview['profit'].apply(pd.to_numeric).sum(),2)
+all_stock_codes = list(df_overview['code'].values)
 
+def get_total_profit(df_overview)-> float:
+    return round( df_overview['profit'].apply(pd.to_numeric).sum(),2)
+
+total_profit=get_total_profit(df_overview)
 
 def bind_price_to_all_records():
     # process detailed transaction data
@@ -139,6 +142,7 @@ with ui.expansion('Add new transaction!', icon='add').classes('w-full').style(la
 ui.separator()
 
 ui.label('Overview').style(label_style)
+
 ui_total_profit=ui.label('Total profit: {0}'.format(total_profit)).style('font-size: 100%; font-weight: 300')
 
 
@@ -200,7 +204,7 @@ with ui.row():
     ui.label('Transcations').style(
         label_style)
     ui.space()
-    ui_code_selector = ui.select(codes, value=codes[0], on_change=update_plot)
+    ui_code_selector = ui.select(all_stock_codes, value=all_stock_codes[0], on_change=update_plot)
 
 
 fig = go.Figure()
@@ -226,6 +230,7 @@ def update_all_records_table_ui() -> None:
     df_etf = ak.fund_etf_spot_em()
     df_all_records_price = bind_price_to_all_records()
     df_overview=get_overview_table()
+    ui_total_profit.text=get_total_profit(df_overview)
     overtiew_table_ui.refresh()
     all_records_table_ui.refresh()
 
