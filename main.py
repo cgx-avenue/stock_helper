@@ -14,19 +14,15 @@ ui.page_title("Stock_transaction_tool")
 
 label_style = 'color: #6E93D6; font-size: 200%; font-weight: 300'
 
-
 def get_all_records():
     all_records = pd.read_sql(
         "select code,stock_name,timestamp,action,price,quantity,amount,fee from stock_trading_record order by timestamp desc", con=conn)
     print(all_records.shape)
     return all_records
 
-# get all transactions from database as data source
 df_all_records = get_all_records()
 
-# use akshare interface to get all ETF real-time prices
 df_etf = ak.fund_etf_spot_em()
-
 
 def get_overview_table():
     df = df_all_records.copy()
@@ -71,10 +67,13 @@ df_overview = get_overview_table()
 
 all_stock_codes = list(df_overview['code'].values)
 
-def get_total_profit(df_overview)-> float:
-    return round( df_overview['profit'].apply(pd.to_numeric).sum(),2)
 
-total_profit=get_total_profit(df_overview)
+def get_total_profit(df_overview) -> float:
+    return round(df_overview['profit'].apply(pd.to_numeric).sum(), 2)
+
+
+total_profit = get_total_profit(df_overview)
+
 
 def bind_price_to_all_records():
     # process detailed transaction data
@@ -140,18 +139,16 @@ with ui.expansion('Add new transaction!', icon='add').classes('w-full').style(la
 
 
 ui.separator()
-
-ui.label('Overview').style(label_style)
-ui_total_profit=ui.label('Total profit: {0}'.format(total_profit)).style('font-size: 100%; font-weight: 300')
-
-
-
-
+with ui.row():
+    ui.label('Overview').style(label_style)
+    ui.space()
+    ui_total_profit = ui.label().bind_text(globals(), 'total_profit').style(
+        'color:green;font-size: 100%; font-weight: 300' if total_profit > 0 else 'color:red;font-size: 100%; font-weight: 300;margin-top:15px')
 
 
 @ui.refreshable
 def overtiew_table_ui() -> None:
-    ui.table.from_pandas(df_overview,pagination=10).add_slot('body-cell-profit', '''
+    ui.table.from_pandas(df_overview, pagination=10).add_slot('body-cell-profit', '''
     <q-td key="profit" :props="props">
         <q-badge :color="props.value < 0 ? 'red' : 'green'">
             {{ props.value }}
@@ -159,19 +156,9 @@ def overtiew_table_ui() -> None:
     </q-td>
 ''')
 
-
-def update_overview_table_ui() -> None:
-    global df_etf, df_overview
-    df_etf = ak.fund_etf_spot_em()
-    df_overview = get_overview_table()
-    overtiew_table_ui.refresh()
-
-
 overtiew_table_ui()
-# ui.button('update', on_click=update_overview_table_ui)
 
 ui.separator()
-
 
 def update_plot() -> None:
     fig.data = []
@@ -204,7 +191,8 @@ with ui.row():
     ui.label('Transcations').style(
         label_style)
     ui.space()
-    ui_code_selector = ui.select(all_stock_codes, value=all_stock_codes[0], on_change=update_plot)
+    ui_code_selector = ui.select(
+        all_stock_codes, value=all_stock_codes[0], on_change=update_plot)
 
 
 fig = go.Figure()
@@ -216,7 +204,7 @@ update_plot()
 @ui.refreshable
 def all_records_table_ui() -> None:
     ui.table.from_pandas(
-        df_all_records_price, row_key='code',pagination=5).bind_filter_from(ui_code_selector, 'value').add_slot('body-cell-profit', '''
+        df_all_records_price, row_key='code', pagination=5).bind_filter_from(ui_code_selector, 'value').add_slot('body-cell-profit', '''
     <q-td key="profit" :props="props">
         <q-badge :color="props.value < 0 ? 'red' : 'green'">
             {{ props.value }}
@@ -226,11 +214,11 @@ def all_records_table_ui() -> None:
 
 
 def update_all_records_table_ui() -> None:
-    global df_etf, df_all_records_price,df_overview
+    global df_etf, df_all_records_price, df_overview,total_profit
     df_etf = ak.fund_etf_spot_em()
     df_all_records_price = bind_price_to_all_records()
-    df_overview=get_overview_table()
-    ui_total_profit.text=get_total_profit(df_overview)
+    df_overview = get_overview_table()
+    total_profit=get_total_profit(df_overview)
     overtiew_table_ui.refresh()
     all_records_table_ui.refresh()
 
@@ -238,12 +226,9 @@ def update_all_records_table_ui() -> None:
 all_records_table_ui()
 ui.button('update', on_click=update_all_records_table_ui)
 
-
 ui.separator()
-
 
 def show_value(e):
     ui.notify(e.value)
-
 
 ui.run()
