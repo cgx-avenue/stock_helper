@@ -6,6 +6,9 @@ import plotly.graph_objects as go
 import akshare as ak
 import numpy as np
 
+
+
+
 conn = sqlite3.connect('stock_trading_records.db')
 cur = conn.cursor()
 
@@ -13,6 +16,8 @@ ui.dark_mode().enable()
 ui.page_title("Stock_transaction_tool")
 
 label_style = 'color: #6E93D6; font-size: 200%; font-weight: 300'
+
+
 
 
 def get_all_records():

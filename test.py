@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from typing import List
-
+import pandas as pd
 import models
 from tortoise import Tortoise
 
@@ -25,20 +25,11 @@ async def list_of_users() -> None:
         await record.delete()
         list_of_users.refresh()
 
-    records: List[models.stock_trading_record] = await models.stock_trading_record.all()
-    columns = models.stock_trading_record
-    columns = [
-        {'name': 'name', 'label': 'Name', 'field': 'name',
-            'required': True, 'align': 'left'},
-        {'name': 'age', 'label': 'Age', 'field': 'age', 'sortable': True},
-    ]
-    rows = [
-        {'name': 'Alice', 'age': 18},
-        {'name': 'Bob', 'age': 21},
-        {'name': 'Carol'},
-    ]
-    ui.table(columns=columns, rows=rows, row_key='name')
+    records:List[models.stock_trading_record]= await models.stock_trading_record.all()
+    
+
     for record in reversed(records):
+        # print(record)
         with ui.card():
             with ui.row().classes('items-center'):
                 ui.input('Code', on_change=record.save) \
